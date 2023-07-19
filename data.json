@@ -1,0 +1,138 @@
+[
+{
+    "time":"",
+    "coordinates":{
+        "longitude":76.9330689,
+        "latitude":43.2362993,
+        "altitude":810.355
+    },
+    "data":{
+        "NO2":123,
+        "CO":123,
+        "SO2":123,
+        "O3":123,
+        "PM":123,
+        "Humidity":123,
+        "Temperature":123
+    }
+},
+{
+    "time":"2023",
+    "coordinates":{
+        "longitude":76.9330740,
+        "latitude":43.2363000,
+        "altitude":811.355
+    },
+    "data":{
+        "NO2":123,
+        "CO":123,
+        "SO2":123,
+        "O3":123,
+        "PM":123,
+        "Humidity":123,
+        "Temperature":123
+    }
+},
+{
+    "time":"2023",
+    "coordinates":{
+        "longitude":76.9330730,
+        "latitude":43.2363133,
+        "altitude":812.355
+    },
+    "data":{
+        "NO2":123,
+        "CO":123,
+        "SO2":123,
+        "O3":123,
+        "PM":123,
+        "Humidity":123,
+        "Temperature":123
+    }
+},
+{
+    "time":"2023",
+    "coordinates":{
+        "longitude":76.93307800,
+        "latitude":43.2363200,
+        "altitude":815.355
+    },
+    "data":{
+        "NO2":123,
+        "CO":123,
+        "SO2":123,
+        "O3":123,
+        "PM":123,
+        "Humidity":123,
+        "Temperature":123
+    }
+},
+{
+    "time":"2023",
+    "coordinates":{
+        "longitude":76.9330810,
+        "latitude":43.2363299,
+        "altitude":820.355
+    },
+    "data":{
+        "NO2":123,
+        "CO":123,
+        "SO2":123,
+        "O3":123,
+        "PM":123,
+        "Humidity":123,
+        "Temperature":123
+    }
+},
+{
+    "time":"2023",
+    "coordinates":{
+        "longitude":76.9330880,
+        "latitude":43.2363367,
+        "altitude":821.355
+    },
+    "data":{
+        "NO2":123,
+        "CO":123,
+        "SO2":123,
+        "O3":123,
+        "PM":123,
+        "Humidity":123,
+        "Temperature":123
+    }
+},
+{
+    "time":"2023",
+    "coordinates":{
+        "longitude":76.9330930,
+        "latitude":43.2363420,
+        "altitude":822.355
+    },
+    "data":{
+        "NO2":123,
+        "CO":123,
+        "SO2":123,
+        "O3":123,
+        "PM":123,
+        "Humidity":123,
+        "Temperature":123
+    }
+},
+{
+    "time":"2023",
+    "coordinates":{
+        "longitude":76.9330900,
+        "latitude":43.2363490,
+        "altitude":825.355
+    },
+    "data":{
+        "NO2":123,
+        "CO":123,
+        "SO2":123,
+        "O3":123,
+        "PM":123,
+        "Humidity":123,
+        "Temperature":123
+    }
+}
+]
