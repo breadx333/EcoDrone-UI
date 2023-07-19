@@ -1,143 +1,234 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <!-- Include the CesiumJS JavaScript and CSS files -->
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.107/Build/Cesium/Cesium.js"></script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.107/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-</head>
-<body>
-  <div id="cesiumContainer"></div>
-  <script type="module">
-    import dir_data from './generated_data.json' assert { type : 'json'};
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>EcoDrone UI</title>
+		<style>
+			body { margin: 0; }
+		</style>
+	</head>
+	<body>
+        <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
 
-    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3NzE2MzEzYS1kMTBkLTQ2YWYtOGE0MC01MjhmMzhhMzNjZDkiLCJpZCI6MTUyMTQzLCJpYXQiOjE2ODg3MDQ4NTF9.PN0-rHnI9SXb4ITJ4X2dS22kFCbYEzEwYp9aZAsyxWg';
+        <script id="vertexShader" type="x-shader/x-vertex">
+            // Uniforms are data that are shared between shaders
+            // The contain data that are uniform across the entire frame.
+            // The heightmap and scaling constant for each point are uniforms in this respect.
+            
+            // A uniform to contain the heightmap image
+            uniform sampler2D bumpTexture;
+            // A uniform to contain the scaling constant
+            uniform float bumpScale;
+            
+            // Varyings are variables whose values are decided in the vertext shader
+            // But whose values are then needed in the fragment shader
+            
+            // A variable to store the height of the point
+            varying float vAmount;
+            // The UV mapping coordinates of a vertex
+            varying vec2 vUV;
+            
+            void main()
+            {
+                // The "coordinates" in UV mapping representation
+                vUV = uv;
+            
+                // The heightmap data at those coordinates
+                vec4 bumpData = texture2D(bumpTexture, uv);
+            
+                // height map is grayscale, so it doesn't matter if you use r, g, or b.
+                vAmount = bumpData.r;
+            
+                // move the position along the normal
+                vec3 newPosition = position + normal * bumpScale * vAmount;
+            
+                // Compute the position of the vertex using a standard formula
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+            }
+        </script>
 
-    const viewer = new Cesium.Viewer('cesiumContainer', {
-        terrain: Cesium.Terrain.fromWorldTerrain(),
-        animation: true,
-        timeline: true
-    });    
+        <script id='fragmentShader' type='x-shader/x-vertex'>
+            // A uniform fot the terrain texture image
+            uniform sampler2D terrainTexture;
+            
+            // Get the varyings from the vertex shader
+            varying vec2 vUV;
+            // vAmount isn't really used, but could be if necessary
+            varying float vAmount;
+            
+            void main()
+            {
+                // Get the color of the fragment from the texture map
+                // at that coordinate in the UV mapping
+                gl_FragColor = texture2D(terrainTexture, vUV);
+            }     
+        </script>
 
-    const camera = viewer.camera;
+        <script type="importmap">
+          {
+            "imports": {
+              "three": "https://unpkg.com/three/build/three.module.js",
+              "three/addons/": "https://unpkg.com/three/examples/jsm/"
+            }
+          }
+        </script>
 
-    const osmBuildings = await Cesium.createOsmBuildingsAsync();
+		<script type="module">
+            import * as THREE from 'three';
+            import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    const timeStepInSeconds = 30;
-    const totalSeconds = timeStepInSeconds * (dir_data.length - 1);
-    const start = Cesium.JulianDate.fromIso8601("2020-03-09T23:10:00Z");
-    const stop = Cesium.JulianDate.addSeconds(start, totalSeconds, new Cesium.JulianDate());
+			const scene = new THREE.Scene();
+			const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
-    viewer.clock.startTime = start.clone();
-    viewer.clock.stopTime = stop.clone();
-    viewer.clock.currentTime = start.clone();
-    viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
-    viewer.clock.multiplier = 10;
+			const renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
 
-    viewer.timeline.zoomTo(start, stop);
-    // Speed up the playback speed 50x.
-    // Start playing the scene.
-    viewer.clock.shouldAnimate = true;
+            const controls = new OrbitControls( camera, renderer.domElement );
+            controls.autoRotate = true;
 
-    const positionProperty = new Cesium.SampledPositionProperty();
+            //const texture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/uv_grid_opengl.jpg');
+            
+            // const texture = new THREE.TextureLoader().load('render-google.jpg'); //new implementation
+            // texture.wrapS = THREE.RepeatWrapping;
+            // texture.wrapT = THREE.RepeatWrapping;
+            // texture.repeat.set( 1, 1 );
 
-    function getRgb(number) {
-      let hue = number * 1.2 / 360
-      let rgb = hslToRgb(hue, 1, .5)
+            // const displacement = new THREE.TextureLoader().load('render.png');
+            // displacement.wrapS = THREE.RepeatWrapping;
+            // displacement.wrapT = THREE.RepeatWrapping;
+            // displacement.repeat.set( 1, 1 );
 
-      return rgb
-    }
+            // const plane = new THREE.Mesh( new THREE.PlaneGeometry( 420, 200, 419, 199 ), 
+            //     new THREE.MeshStandardMaterial({
+            //         map: texture,
+            //         displacementMap: displacement,
+            //         displacementScale: 70
+            //     }) );
 
-    function hslToRgb(h, s, l) {
-      let r, g, b;
+            // const plane2 = new THREE.Mesh( new THREE.PlaneGeometry( 420, 200, 419, 199 ),
+            // new THREE.MeshBasicMaterial( { map: texture } ) );
 
-      if (s === 0) {
-        r = g = b = l; // achromatic
-      } else {
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r = hueToRgb(p, q, h + 1/3);
-        g = hueToRgb(p, q, h);
-        b = hueToRgb(p, q, h - 1/3);
-      }
+            // const v3Array = [
+            //     new THREE.Vector3(0, 1, 0),
+            //     new THREE.Vector3(1, 1, 0),
+            //     new THREE.Vector3(0, 2, 0),
+            //     new THREE.Vector3(1, 2, 0)
+            // ];
 
-      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-    }
+            // const pts = new THREE.Points( new THREE.BufferGeometry().setFromPoints(v3Array), 
+            //     new THREE.PointsMaterial( { color: 0x00afaf, size: 0.25 } ));
+            
+            // scene.background = new THREE.Color( 0xbfe3dd );
+            // camera.position.set( 5, 5, 5 );
+            // plane.rotation.x = - Math.PI / 2;
+            // plane2.rotation.x = - Math.PI / 2;
 
-    function hueToRgb(p, q, t) {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1/6) return p + (q - p) * 6 * t;
-      if (t < 1/2) return q;
-      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-      return p;
-    }
+            // scene.add( plane );
+            // scene.add( plane2 );
+            // scene.add( pts ); //until here
 
-    function percentageToHsl(percentage, hue0, hue1) {
-      let hue = (percentage * (hue1 - hue0)) + hue0;
-      return hue
-    }
+            const heightMap = new THREE.TextureLoader().load('render.png');
+            const textureMap = new THREE.TextureLoader().load('render-google.jpg');
 
-    const min_air_poll_val = 0
-    const max_air_poll_val = 800
+            const groundMaterial = new THREE.ShaderMaterial( {
+                uniforms: { 
+                    bumpTexture: { value: heightMap },
+                    bumpScale: { value: 50  },
+                    terrainTexture: { value: textureMap }
+                },
+                vertexShader: document.getElementById( 'vertexShader' ).textContent,
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+            } );
 
-    for (let i = 0; i < dir_data.length; i++) {
-      const dataPoint = dir_data[i];
+            const groundGeo = new THREE.PlaneGeometry( 420, 200, 419, 199 );
 
-      const avg_air_poll = (dataPoint.data.NO2 + dataPoint.data.CO + dataPoint.data.SO2 + dataPoint.data.O3 + dataPoint.data.PM) / 5
+            const ground = new THREE.Mesh( groundGeo, groundMaterial );
 
-      const point_color = Cesium.Color.fromHsl((Math.round(((avg_air_poll - min_air_poll_val) / (max_air_poll_val - min_air_poll_val) + Number.EPSILON) * 100) / 300), 1.0, 0.5)
+            scene.background = new THREE.Color( 0xbfe3dd );
+            camera.position.set( 130, 130, 130 );
+            ground.rotation.x = - Math.PI / 2;
 
-      console.log(point_color);
+            scene.add( ground );
 
-      console.log(dataPoint);
+            const colors = [0xff0000, 0xffff00, 0x00ff00];
+            const row = [8, 9, 10, 11, 12, 13, 14, 15, 16];
+            const data = [269, 313, 314, 356, 357, 358, 401, 485, 486, 487, 488, 530, 531, 532, 533, 534, 535,
+        635, 525, 745, 455, 736, 646];
+            const dotGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0)]);
+            const template = new THREE.PlaneGeometry( 420, 200, 42, 20 );
+            const pos = template.getAttribute('position');
 
-      const time = Cesium.JulianDate.addSeconds(start, i * timeStepInSeconds, new Cesium.JulianDate());
-      const position = Cesium.Cartesian3.fromDegrees(
-        dataPoint.coordinates.longitude, 
-        dataPoint.coordinates.latitude, 
-        dataPoint.coordinates.altitude //+ 4
-      );
+            let i = 0;
+            const len = pos.count;
 
-      positionProperty.addSample(time, position);
+            const firstLayer = new THREE.Group();
+            while(i < len){
+                let col = 0x00afaf;
+                if (row.includes(Math.floor(i / 43)) &&
+                (13  < (i % 43)) && ((i % 43) < 27)) { col = colors[Math.floor(Math.random() * 3)] };
+                const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)+10)
+                const mesh = new THREE.Points(
+                    dotGeometry,
+                    new THREE.PointsMaterial({
+                        color: col,
+                        size: 2
+                    }));
+                mesh.position.copy(v);
+                firstLayer.add(mesh);
+                i += 1;
+            }
 
-      viewer.entities.add({
-        description: `<p>Avg. Air. Poll: ${avg_air_poll}</p>
-        <p>NO2: ${dataPoint.data.NO2}</p>
-        <p>CO: ${dataPoint.data.CO}</p>
-        <p>SO2: ${dataPoint.data.SO2}</p>
-        <p>O3: ${dataPoint.data.O3}</p>
-        <p>PM: ${dataPoint.data.PM}</p>
-        <p>Hum.: ${dataPoint.data.Humidity}</p>
-        <p>Temp.: ${dataPoint.data.Temperature}</p>`,
-        position: position,
-        point: {
-          pixelSize: 10,
-          color: point_color //new Cesium.Color(point_color[0], point_color[1], point_color[2], 1.0) //Cesium.Color.RED
-        }
-      });
-    }
+            i = 0;
+            const secondLayer = new THREE.Group();
+            while(i < len){
+                let col = 0x00afaf;
+                if (data.includes(i)) { col = colors[Math.floor(Math.random() * 3)] };
+                const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)+20)
+                const mesh = new THREE.Points(
+                    dotGeometry,
+                    new THREE.PointsMaterial({
+                        color: col,
+                        size: 2
+                    }));
+                mesh.position.copy(v);
+                secondLayer.add(mesh);
+                i += 1;
+            }
 
-    const drone_model = viewer.entities.add({
-      model: {
-        uri: "drone.gltf",
-        scale: 0.01
-      },
-      position: positionProperty,
-      orientation: new Cesium.VelocityOrientationProperty(positionProperty)
-    });
+            i = 0;
+            const thirdLayer = new THREE.Group();
+            while(i < len){
+                let col = 0x00afaf;
+                if (data.includes(i)) { col = colors[Math.floor(Math.random() * 3)] };
+                const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)+30)
+                const mesh = new THREE.Points(
+                    dotGeometry,
+                    new THREE.PointsMaterial({
+                        color: col,
+                        size: 2
+                    }));
+                mesh.position.copy(v);
+                thirdLayer.add(mesh);
+                i += 1;
+            }
 
-    viewer.scene.primitives.add(osmBuildings);
+            console.log(len);
 
-    //43.2362883, 76.9330689, 810355
-    
-    //viewer.zoomTo(viewer.entities);
+            firstLayer.rotation.x = - Math.PI / 2;
+            scene.add(firstLayer);
+            secondLayer.rotation.x = - Math.PI / 2;
+            scene.add(secondLayer);
+            thirdLayer.rotation.x = - Math.PI / 2;
+            scene.add(thirdLayer);
 
-    viewer.trackedEntity = drone_model;
+			function animate() {
+				requestAnimationFrame( animate );
+                controls.update();
+				renderer.render( scene, camera );
+			};
 
-    viewer.animation.container.style.visibility = 'hidden';
-    viewer.timeline.container.style.visibility = 'hidden';
-  </script>
- </div>
-</body>
+			animate();
+		</script>
+	</body>
 </html>
