@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Include the CesiumJS JavaScript and CSS files -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.107/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.107/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <script type="module">
+    import dir_data from './generated_data.json' assert { type : 'json'};
+
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3NzE2MzEzYS1kMTBkLTQ2YWYtOGE0MC01MjhmMzhhMzNjZDkiLCJpZCI6MTUyMTQzLCJpYXQiOjE2ODg3MDQ4NTF9.PN0-rHnI9SXb4ITJ4X2dS22kFCbYEzEwYp9aZAsyxWg';
+
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+        terrain: Cesium.Terrain.fromWorldTerrain(),
+        animation: true,
+        timeline: true
+    });    
+
+    const camera = viewer.camera;
+
+    const osmBuildings = await Cesium.createOsmBuildingsAsync();
+
+    const timeStepInSeconds = 30;
+    const totalSeconds = timeStepInSeconds * (dir_data.length - 1);
+    const start = Cesium.JulianDate.fromIso8601("2020-03-09T23:10:00Z");
+    const stop = Cesium.JulianDate.addSeconds(start, totalSeconds, new Cesium.JulianDate());
+
+    viewer.clock.startTime = start.clone();
+    viewer.clock.stopTime = stop.clone();
+    viewer.clock.currentTime = start.clone();
+    viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+    viewer.clock.multiplier = 10;
+
+    viewer.timeline.zoomTo(start, stop);
+    // Speed up the playback speed 50x.
+    // Start playing the scene.
+    viewer.clock.shouldAnimate = true;
+
+    const positionProperty = new Cesium.SampledPositionProperty();
+
+    function getRgb(number) {
+      let hue = number * 1.2 / 360
+      let rgb = hslToRgb(hue, 1, .5)
+
+      return rgb
+    }
+
+    function hslToRgb(h, s, l) {
+      let r, g, b;
+
+      if (s === 0) {
+        r = g = b = l; // achromatic
+      } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hueToRgb(p, q, h + 1/3);
+        g = hueToRgb(p, q, h);
+        b = hueToRgb(p, q, h - 1/3);
+      }
+
+      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
+
+    function hueToRgb(p, q, t) {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    }
+
+    function percentageToHsl(percentage, hue0, hue1) {
+      let hue = (percentage * (hue1 - hue0)) + hue0;
+      return hue
+    }
+
+    const min_air_poll_val = 0
+    const max_air_poll_val = 800
+
+    for (let i = 0; i < dir_data.length; i++) {
+      const dataPoint = dir_data[i];
+
+      const avg_air_poll = (dataPoint.data.NO2 + dataPoint.data.CO + dataPoint.data.SO2 + dataPoint.data.O3 + dataPoint.data.PM) / 5
+
+      const point_color = Cesium.Color.fromHsl((Math.round(((avg_air_poll - min_air_poll_val) / (max_air_poll_val - min_air_poll_val) + Number.EPSILON) * 100) / 300), 1.0, 0.5)
+
+      console.log(point_color);
+
+      console.log(dataPoint);
+
+      const time = Cesium.JulianDate.addSeconds(start, i * timeStepInSeconds, new Cesium.JulianDate());
+      const position = Cesium.Cartesian3.fromDegrees(
+        dataPoint.coordinates.longitude, 
+        dataPoint.coordinates.latitude, 
+        dataPoint.coordinates.altitude //+ 4
+      );
+
+      positionProperty.addSample(time, position);
+
+      viewer.entities.add({
+        description: `<p>Avg. Air. Poll: ${avg_air_poll}</p>
+        <p>NO2: ${dataPoint.data.NO2}</p>
+        <p>CO: ${dataPoint.data.CO}</p>
+        <p>SO2: ${dataPoint.data.SO2}</p>
+        <p>O3: ${dataPoint.data.O3}</p>
+        <p>PM: ${dataPoint.data.PM}</p>
+        <p>Hum.: ${dataPoint.data.Humidity}</p>
+        <p>Temp.: ${dataPoint.data.Temperature}</p>`,
+        position: position,
+        point: {
+          pixelSize: 10,
+          color: point_color //new Cesium.Color(point_color[0], point_color[1], point_color[2], 1.0) //Cesium.Color.RED
+        }
+      });
+    }
+
+    const drone_model = viewer.entities.add({
+      model: {
+        uri: "drone.gltf",
+        scale: 0.01
+      },
+      position: positionProperty,
+      orientation: new Cesium.VelocityOrientationProperty(positionProperty)
+    });
+
+    viewer.scene.primitives.add(osmBuildings);
+
+    //43.2362883, 76.9330689, 810355
+    
+    //viewer.zoomTo(viewer.entities);
+
+    viewer.trackedEntity = drone_model;
+
+    viewer.animation.container.style.visibility = 'hidden';
+    viewer.timeline.container.style.visibility = 'hidden';
+  </script>
+ </div>
+</body>
+</html>
